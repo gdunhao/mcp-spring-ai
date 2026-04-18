@@ -1,0 +1,25 @@
+Development Notes - MCP Spring AI Demo
+=======================================
+
+Date: 2024-03-15
+
+Setup:
+- Using Spring Boot 3.5.13 with Spring AI 1.0.0
+- Ollama running locally with qwen3:0.6b model
+- MCP server on port 3001, client on port 8080
+
+Architecture decisions:
+- Multi-module Maven project (server + client separation)
+- SSE transport as default (easier to debug than STDIO)
+- H2 in-memory database for demo data
+- Sandboxed file system operations for security
+
+TODO: Add integration tests for all MCP tools
+TODO: Implement rate limiting on chat endpoints
+FIXME: Weather tool should handle timezone differences
+
+Notes on tool calling:
+- Small models (0.6b) work well for simple tool calls
+- Complex multi-step reasoning may need larger models
+- Temperature 0.2 gives best results for tool calling accuracy
+

@@ -1,0 +1,18 @@
+# ============================================================
+# MCP Server — STDIO Transport Profile
+# ============================================================
+# Activate with: --spring.profiles.active=stdio
+#
+# In STDIO mode, the server communicates via standard input/output
+# instead of HTTP/SSE. The web server is disabled.
+# This mode is used when the MCP client launches the server as a subprocess.
+# ============================================================
+
+spring:
+  ai:
+    mcp:
+      server:
+        transport: STDIO
+  main:
+    web-application-type: none
+

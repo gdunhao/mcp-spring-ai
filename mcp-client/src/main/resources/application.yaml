@@ -1,0 +1,52 @@
+# ============================================================
+# MCP Client Configuration
+# ============================================================
+# This client connects to the MCP Server and uses Ollama as the LLM.
+#
+# Prerequisites:
+#   1. MCP Server running on port 3001 (./mvnw spring-boot:run -pl mcp-server)
+#   2. Ollama running with qwen3:0.6b (ollama run qwen3:0.6b)
+#
+# Run: ./mvnw spring-boot:run -pl mcp-client
+# ============================================================
+
+spring:
+  application:
+    name: mcp-demo-client
+
+  # --- Virtual Threads (Project Loom) ---
+  # Enables virtual threads for all Spring MVC request handling.
+  threads:
+    virtual:
+      enabled: true
+
+  # --- Ollama LLM Configuration ---
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: qwen3:0.6b
+        options:
+          # Lower temperature for more deterministic tool-calling behavior
+          temperature: 0.2
+          # Limit output tokens for faster responses during demos
+          num-predict: 2048
+
+    # --- MCP Client Configuration (SSE transport) ---
+    mcp:
+      client:
+        sse:
+          connections:
+            mcp-demo-server:
+              url: http://localhost:3001
+
+# Client runs on port 8080 (default)
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    com.example.mcpclient: DEBUG
+    org.springframework.ai: DEBUG
+
