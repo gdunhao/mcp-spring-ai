@@ -12,53 +12,45 @@
 
 ## High-Level Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                        USER (curl/browser)                    │
-│                              │                                │
-│                    REST API (port 8080)                       │
-└──────────────────────────────┼────────────────────────────────┘
-                               │
-┌──────────────────────────────▼────────────────────────────────┐
-│                     MCP CLIENT (mcp-client/)                   │
-│                                                                │
-│  ┌─────────────────┐    ┌──────────────┐    ┌──────────────┐ │
-│  │ ChatController   │───→│  ChatService  │───→│  ChatClient  │ │
-│  │ DemoController   │    │              │    │  (Spring AI) │ │
-│  └─────────────────┘    └──────────────┘    └──────┬───────┘ │
-│                                                      │         │
-│                          ┌───────────────────────────┤         │
-│                          │                           │         │
-│                 ┌────────▼────────┐      ┌──────────▼───────┐│
-│                 │  Ollama (LLM)   │      │  MCP Client SDK  ││
-│                 │  qwen3:0.6b     │      │  (SSE transport) ││
-│                 │  localhost:11434 │      │                  ││
-│                 └─────────────────┘      └────────┬─────────┘│
-└────────────────────────────────────────────────────┼──────────┘
-                                                     │
-                                          SSE (port 3001)
-                                                     │
-┌────────────────────────────────────────────────────▼──────────┐
-│                     MCP SERVER (mcp-server/)                   │
-│                                                                │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │                    McpServerConfig                        │  │
-│  │  (ToolCallbackProvider + Resources + Prompts)            │  │
-│  └─────────┬──────────────┬───────────────┬────────────────┘  │
-│            │              │               │                    │
-│  ┌─────────▼───┐  ┌──────▼──────┐  ┌────▼──────────┐        │
-│  │   TOOLS     │  │  RESOURCES  │  │   PROMPTS     │        │
-│  │             │  │             │  │               │        │
-│  │ FileSystem  │  │ Knowledge   │  │ Summarize     │        │
-│  │ Database    │  │ Base .md    │  │ SQL Helper    │        │
-│  │ Weather     │  │ files       │  │ Code Review   │        │
-│  │ CodeAnalysis│  │             │  │ Explain       │        │
-│  └─────────────┘  └─────────────┘  │ Compare       │        │
-│        │                            └───────────────┘        │
-│  ┌─────▼─────┐                                               │
-│  │ H2 DB     │  (employees, departments, products, orders)   │
-│  └───────────┘                                               │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "tertiaryColor": "#1e293b", "clusterBkg": "#0f172a", "edgeLabelBackground": "#1e293b" } } }%%
+graph TB
+    USER["👤 USER\ncurl / browser"]
+
+    subgraph CLIENT["☁️ MCP Client — mcp-client/ — :8080"]
+        CC[ChatController\nDemoController]
+        CS[ChatService]
+        CHAT[ChatClient\nSpring AI]
+        OLLAMA["🦙 Ollama LLM\nqwen3:0.6b  :11434"]
+        MCP_SDK[MCP Client SDK\nSSE transport]
+    end
+
+    subgraph SERVER["🔧 MCP Server — mcp-server/ — :3001"]
+        CFG[McpServerConfig]
+        subgraph TOOLS_S["🔧 Tools"]
+            FS[FileSystemTool]
+            DB[DatabaseQueryTool]
+            WX[WeatherTool]
+            CA[CodeAnalysisTool]
+        end
+        subgraph RES_S["📚 Resources"]
+            KB[KnowledgeBase\nkb:// URIs]
+        end
+        subgraph PROMPT_S["💬 Prompts"]
+            PP[DemoPromptProvider]
+        end
+        H2[("H2 In-Memory DB\n:8082/h2-console")]
+        WS["📂 demo-workspace/"]
+    end
+
+    USER -->|"REST API :8080"| CC
+    CC --> CS --> CHAT
+    CHAT -->|"ollama API"| OLLAMA
+    CHAT <-->|"SSE transport"| MCP_SDK
+    MCP_SDK <-->|"SSE :3001"| CFG
+    CFG --> TOOLS_S & RES_S & PROMPT_S
+    DB --> H2
+    FS --> WS
 ```
 
 ---

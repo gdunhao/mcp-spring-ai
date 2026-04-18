@@ -20,11 +20,10 @@ only the delivery mechanism changes.
 Think of it like email vs. instant messaging: the content is the same, but the
 delivery mechanism has different trade-offs.
 
-```
-┌────────────┐                        ┌────────────┐
-│ MCP Client │ ◄─── Transport ───────►│ MCP Server │
-│            │     (SSE or STDIO)      │            │
-└────────────┘                        └────────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "clusterBkg": "#0f172a" } } }%%
+graph LR
+    C[MCP Client] <-->|"Transport\nSSE or STDIO"| S[MCP Server]
 ```
 
 ---
@@ -33,19 +32,17 @@ delivery mechanism has different trade-offs.
 
 ### How It Works
 
-```
-┌────────────┐                              ┌────────────┐
-│ MCP Client │                              │ MCP Server │
-│            │── GET /sse ─────────────────►│ (port 3001)│
-│            │◄─ SSE connection (open) ─────│            │
-│            │                              │            │
-│            │── POST /mcp/message ────────►│            │
-│            │   (tool call, read resource) │            │
-│            │◄─ SSE event (result) ────────│            │
-│            │                              │            │
-│            │◄─ SSE event (notification) ──│            │
-│            │   (server push)              │            │
-└────────────┘                              └────────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "actorBkg": "#1e293b", "actorTextColor": "#e2e8f0", "actorBorderColor": "#475569", "activationBkgColor": "#334155", "activationBorderColor": "#64748b", "noteBkgColor": "#0f172a", "noteTextColor": "#94a3b8" } } }%%
+sequenceDiagram
+    participant C as MCP Client
+    participant S as MCP Server :3001
+
+    C->>S: GET /sse (open SSE connection)
+    S-->>C: SSE connection established (kept open)
+    C->>S: POST /mcp/message (tool call / read resource)
+    S-->>C: SSE event (result)
+    S-->>C: SSE event (notification / server push)
 ```
 
 **SSE uses two channels:**
@@ -102,18 +99,17 @@ spring.ai.mcp.client:
 
 ### How It Works
 
-```
-┌────────────┐                              ┌────────────┐
-│ MCP Client │                              │ MCP Server │
-│            │── spawns server process ─────►│ (subprocess)│
-│            │                              │            │
-│            │── stdin (JSON-RPC) ──────────►│            │
-│            │   (tool call, read resource) │            │
-│            │◄─ stdout (JSON-RPC) ─────────│            │
-│            │   (results, notifications)   │            │
-│            │                              │            │
-│            │── process termination ───────►│ (exit)     │
-└────────────┘                              └────────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "actorBkg": "#1e293b", "actorTextColor": "#e2e8f0", "actorBorderColor": "#475569", "activationBkgColor": "#334155", "activationBorderColor": "#64748b", "noteBkgColor": "#0f172a", "noteTextColor": "#94a3b8" } } }%%
+sequenceDiagram
+    participant C as MCP Client (Parent Process)
+    participant S as MCP Server (Subprocess)
+
+    C->>S: spawns server process
+    C->>S: stdin — JSON-RPC (tool call / read resource)
+    S-->>C: stdout — JSON-RPC (result / notification)
+    Note over S: stderr used for logging only
+    C->>S: process termination → server exits
 ```
 
 **STDIO uses standard streams:**

@@ -10,22 +10,16 @@ how AI applications communicate with external data sources and tools. Think of i
 
 MCP follows a client-server architecture with clear roles:
 
-```
-┌─────────────────────────────────────────────────┐
-│                   HOST APPLICATION               │
-│  (Your Spring Boot app, IDE, Claude Desktop)     │
-│                                                   │
-│  ┌─────────────┐  ┌─────────────┐               │
-│  │ MCP Client  │  │ MCP Client  │  ...          │
-│  │ (Server A)  │  │ (Server B)  │               │
-│  └──────┬──────┘  └──────┬──────┘               │
-└─────────┼────────────────┼──────────────────────┘
-          │                │
-    ┌─────▼──────┐  ┌─────▼──────┐
-    │ MCP Server │  │ MCP Server │
-    │   (Tools,  │  │  (Weather  │
-    │  Database) │  │    API)    │
-    └────────────┘  └────────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "clusterBkg": "#0f172a" } } }%%
+graph TB
+    subgraph HOST["🏠 Host Application — Spring Boot App / IDE / Claude Desktop"]
+        C1[MCP Client\nServer A]
+        C2[MCP Client\nServer B]
+    end
+
+    C1 --> SA["MCP Server\n(Tools, Database)"]
+    C2 --> SB["MCP Server\n(Weather API)"]
 ```
 
 ### Roles

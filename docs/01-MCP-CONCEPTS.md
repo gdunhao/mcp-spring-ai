@@ -23,22 +23,24 @@ provider.
 
 Before MCP, integrating an LLM with external tools required:
 
-```
-❌ Without MCP:
-┌─────────┐     Custom API     ┌──────────┐
-│   LLM   │ ←── adapter #1 ──→│ Database  │
-│         │ ←── adapter #2 ──→│ File Sys  │
-│         │ ←── adapter #3 ──→│ Weather   │
-│         │ ←── adapter #4 ──→│ Calendar  │
-└─────────┘    (all different)  └──────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "clusterBkg": "#0f172a" } } }%%
+graph LR
+    subgraph WITHOUT["❌ Without MCP — N×M custom adapters"]
+        LLM1[LLM]
+        LLM1 <-->|"custom adapter #1"| DB1[Database]
+        LLM1 <-->|"custom adapter #2"| FS1[File Sys]
+        LLM1 <-->|"custom adapter #3"| WX1[Weather]
+        LLM1 <-->|"custom adapter #4"| CAL1[Calendar]
+    end
 
-✅ With MCP:
-┌─────────┐                     ┌──────────┐
-│   LLM   │ ←── MCP protocol──→│ Database  │
-│         │ ←── MCP protocol──→│ File Sys  │
-│         │ ←── MCP protocol──→│ Weather   │
-│         │ ←── MCP protocol──→│ Calendar  │
-└─────────┘   (one standard)    └──────────┘
+    subgraph WITH["✅ With MCP — one standard protocol"]
+        LLM2[LLM]
+        LLM2 <-->|"MCP protocol"| DB2[Database]
+        LLM2 <-->|"MCP protocol"| FS2[File Sys]
+        LLM2 <-->|"MCP protocol"| WX2[Weather]
+        LLM2 <-->|"MCP protocol"| CAL2[Calendar]
+    end
 ```
 
 Every integration was custom:
@@ -71,21 +73,18 @@ MCP was created to address the **N×M integration problem**:
 
 MCP defines three roles:
 
-```
-┌───────────────────────────────────────────────────────┐
-│                    HOST APPLICATION                     │
-│         (Your Spring Boot App, Claude Desktop)         │
-│                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │  MCP Client  │  │  MCP Client  │  │  MCP Client  │ │
-│  │  (Server A)  │  │  (Server B)  │  │  (Server C)  │ │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │
-└─────────┼──────────────────┼──────────────────┼────────┘
-          │                  │                  │
-    ┌─────▼──────┐    ┌─────▼──────┐    ┌─────▼──────┐
-    │ MCP Server │    │ MCP Server │    │ MCP Server │
-    │  (Files)   │    │  (Weather) │    │ (Database) │
-    └────────────┘    └────────────┘    └────────────┘
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "clusterBkg": "#0f172a" } } }%%
+graph TB
+    subgraph HOST["🏠 Host Application — Your Spring Boot App / Claude Desktop"]
+        C1[MCP Client\nServer A]
+        C2[MCP Client\nServer B]
+        C3[MCP Client\nServer C]
+    end
+
+    C1 --> SA[MCP Server\nFiles]
+    C2 --> SB[MCP Server\nWeather]
+    C3 --> SC[MCP Server\nDatabase]
 ```
 
 ### Host
@@ -206,35 +205,28 @@ generate a human-readable summary of its findings.
 
 ## Protocol Lifecycle
 
-```
-Client                          Server
-  │                               │
-  │──── Initialize ──────────────→│  1. Client sends capabilities
-  │←─── Initialize Result ───────│  2. Server responds with its capabilities
-  │                               │
-  │──── Initialized ─────────────→│  3. Client confirms ready
-  │                               │
-  │──── List Tools ──────────────→│  4. Client discovers tools
-  │←─── Tool List ───────────────│
-  │                               │
-  │──── List Resources ──────────→│  5. Client discovers resources
-  │←─── Resource List ───────────│
-  │                               │
-  │──── List Prompts ────────────→│  6. Client discovers prompts
-  │←─── Prompt List ─────────────│
-  │                               │
-  │                               │  7. Normal operation begins
-  │──── Call Tool ───────────────→│     Client invokes tools as needed
-  │←─── Tool Result ─────────────│
-  │                               │
-  │──── Read Resource ───────────→│     Client reads resources
-  │←─── Resource Content ────────│
-  │                               │
-  │←─── Notification ────────────│  8. Server can push notifications
-  │                               │     (resource changed, tools updated)
-  │                               │
-  │──── Shutdown ────────────────→│  9. Graceful disconnection
-  │                               │
+```mermaid
+%%{init: { "theme": "dark", "themeVariables": { "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "actorBkg": "#1e293b", "actorTextColor": "#e2e8f0", "actorBorderColor": "#475569", "activationBkgColor": "#334155", "activationBorderColor": "#64748b", "noteBkgColor": "#0f172a", "noteTextColor": "#94a3b8" } } }%%
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    C->>S: 1. Initialize (client capabilities)
+    S-->>C: 2. Initialize Result (server capabilities)
+    C->>S: 3. Initialized (ready)
+    C->>S: 4. List Tools
+    S-->>C: Tool List
+    C->>S: 5. List Resources
+    S-->>C: Resource List
+    C->>S: 6. List Prompts
+    S-->>C: Prompt List
+    Note over C,S: 7. Normal operation
+    C->>S: Call Tool
+    S-->>C: Tool Result
+    C->>S: Read Resource
+    S-->>C: Resource Content
+    S-->>C: 8. Notification (server push)
+    C->>S: 9. Shutdown
 ```
 
 ---
