@@ -135,9 +135,11 @@ graph LR
 
     subgraph TOOLS_GRP["🔧 MCP Tools (@Tool)"]
         FS[FileSystemTool<br/>listFiles · readFile<br/>writeFile · searchFiles]
-        DB[DatabaseQueryTool<br/>executeQuery · listTables<br/>describeTable]
+        DB[DatabaseQueryTool<br/>executeQuery · listTables<br/>tableSummary]
         WX[WeatherTool<br/>getCurrentWeather<br/>getWeatherForecast<br/>compareWeather]
-        CA[CodeAnalysisTool<br/>analyzeJavaFile<br/>findPattern<br/>getProjectStructure]
+        CA[CodeAnalysisTool<br/>analyzeJavaFile<br/>findPattern<br/>scanDirectory]
+        CC[CurrencyConverterTool<br/>convertCurrency<br/>getExchangeRates<br/>calculateMultiCurrencyTotal]
+        NT[NotificationTool<br/>sendNotification<br/>sendBulkNotification<br/>getNotificationLog]
     end
 
     subgraph RES_GRP["📚 MCP Resources"]

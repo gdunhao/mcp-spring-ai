@@ -37,7 +37,10 @@ class DemoControllerTest {
                 .andExpect(jsonPath("$.available_demos.db-query").exists())
                 .andExpect(jsonPath("$.available_demos.file-search").exists())
                 .andExpect(jsonPath("$.available_demos.code-review").exists())
-                .andExpect(jsonPath("$.available_demos.knowledge-qa").exists());
+                .andExpect(jsonPath("$.available_demos.knowledge-qa").exists())
+                .andExpect(jsonPath("$.available_demos.multi-tool").exists())
+                .andExpect(jsonPath("$.available_demos.currency").exists())
+                .andExpect(jsonPath("$.available_demos.notification").exists());
     }
 
     @Test
@@ -93,6 +96,33 @@ class DemoControllerTest {
                 .andExpect(jsonPath("$.demo").value("knowledge-qa"));
     }
 
+    @Test
+    void multiToolDemo_returnsDemoResponse() throws Exception {
+        when(chatService.chat(anyString())).thenReturn("Executive briefing ready");
+        mockMvc.perform(get("/demo/multi-tool"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.demo").value("multi-tool"))
+                .andExpect(jsonPath("$.response").value("Executive briefing ready"));
+    }
+
+    @Test
+    void currencyDemo_returnsDemoResponse() throws Exception {
+        when(chatService.chat(anyString())).thenReturn("100 USD = 92 EUR");
+        mockMvc.perform(get("/demo/currency"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.demo").value("currency"))
+                .andExpect(jsonPath("$.response").value("100 USD = 92 EUR"));
+    }
+
+    @Test
+    void notificationDemo_returnsDemoResponse() throws Exception {
+        when(chatService.chat(anyString())).thenReturn("Notifications sent successfully");
+        mockMvc.perform(get("/demo/notification"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.demo").value("notification"))
+                .andExpect(jsonPath("$.response").value("Notifications sent successfully"));
+    }
+
     // ── POST /demo/{scenario} ─────────────────────────────────────────────────
 
     @Test
@@ -116,6 +146,36 @@ class DemoControllerTest {
                         .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.demo").value("weather"));
+    }
+
+    @Test
+    void customDemo_currencyScenarioWithoutMessage_delegatesToGetEndpoint() throws Exception {
+        when(chatService.chat(anyString())).thenReturn("currency result");
+        mockMvc.perform(post("/demo/currency")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.demo").value("currency"));
+    }
+
+    @Test
+    void customDemo_notificationScenarioWithoutMessage_delegatesToGetEndpoint() throws Exception {
+        when(chatService.chat(anyString())).thenReturn("notification result");
+        mockMvc.perform(post("/demo/notification")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.demo").value("notification"));
+    }
+
+    @Test
+    void customDemo_multiToolScenarioWithoutMessage_delegatesToGetEndpoint() throws Exception {
+        when(chatService.chat(anyString())).thenReturn("orchestration result");
+        mockMvc.perform(post("/demo/multi-tool")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.demo").value("multi-tool"));
     }
 
     @Test

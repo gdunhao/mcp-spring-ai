@@ -41,6 +41,30 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     endpoint: '/demo/knowledge-qa',
     badge: 'Resources',
   },
+  {
+    id: 'multi-tool',
+    label: 'Multi-Tool Orchestration',
+    icon: '🔗',
+    description: 'Real-world workflow: DB queries → Weather → Currency conversion → File write → Slack notification.',
+    endpoint: '/demo/multi-tool',
+    badge: 'Orchestration',
+  },
+  {
+    id: 'currency',
+    label: 'Currency Converter',
+    icon: '💱',
+    description: 'Exchange rates, conversions, and multi-currency invoice totals via CurrencyConverterTool.',
+    endpoint: '/demo/currency',
+    badge: 'Tools',
+  },
+  {
+    id: 'notification',
+    label: 'Notifications',
+    icon: '📨',
+    description: 'Multi-channel alerts (email, Slack, SMS) with delivery tracking via NotificationTool.',
+    endpoint: '/demo/notification',
+    badge: 'Tools',
+  },
 ];
 
 export const API_BASE = '';

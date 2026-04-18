@@ -3,8 +3,10 @@ package com.example.mcpserver.config;
 import com.example.mcpserver.prompts.DemoPromptProvider;
 import com.example.mcpserver.resources.KnowledgeBaseResourceProvider;
 import com.example.mcpserver.tools.CodeAnalysisTool;
+import com.example.mcpserver.tools.CurrencyConverterTool;
 import com.example.mcpserver.tools.DatabaseQueryTool;
 import com.example.mcpserver.tools.FileSystemTool;
+import com.example.mcpserver.tools.NotificationTool;
 import com.example.mcpserver.tools.WeatherTool;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -69,6 +71,26 @@ public class McpServerConfig {
     public ToolCallbackProvider codeAnalysisToolProvider(CodeAnalysisTool codeAnalysisTool) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(codeAnalysisTool)
+                .build();
+    }
+
+    /**
+     * Currency converter tool — exposed as its own ToolCallbackProvider.
+     */
+    @Bean
+    public ToolCallbackProvider currencyConverterToolProvider(CurrencyConverterTool currencyConverterTool) {
+        return MethodToolCallbackProvider.builder()
+                .toolObjects(currencyConverterTool)
+                .build();
+    }
+
+    /**
+     * Notification tool — exposed as its own ToolCallbackProvider.
+     */
+    @Bean
+    public ToolCallbackProvider notificationToolProvider(NotificationTool notificationTool) {
+        return MethodToolCallbackProvider.builder()
+                .toolObjects(notificationTool)
                 .build();
     }
 
