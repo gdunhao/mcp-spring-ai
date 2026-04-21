@@ -1,5 +1,7 @@
 package com.example.mcpserver.tools;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 @Component
 public class DatabaseQueryTool {
 
+    private static final Logger log = LoggerFactory.getLogger(DatabaseQueryTool.class);
+
     private final JdbcTemplate jdbcTemplate;
 
     public DatabaseQueryTool(JdbcTemplate jdbcTemplate) {
@@ -41,9 +45,12 @@ public class DatabaseQueryTool {
             "Only SELECT statements are permitted.")
     public String executeQuery(
             @ToolParam(description = "SQL SELECT query to execute") String sql) {
+        log.debug("executeQuery() — SQL: {}", sql);
         // Security: Only allow SELECT statements
         String trimmed = sql.trim().toUpperCase();
         if (!trimmed.startsWith("SELECT")) {
+            log.warn("executeQuery() — blocked non-SELECT statement: {}",
+                    trimmed.substring(0, Math.min(trimmed.length(), 30)));
             return "Error: Only SELECT queries are allowed for safety. Got: " +
                     trimmed.substring(0, Math.min(trimmed.length(), 20)) + "...";
         }
@@ -53,11 +60,15 @@ public class DatabaseQueryTool {
                 trimmed.contains("INSERT") || trimmed.contains("UPDATE") ||
                 trimmed.contains("ALTER") || trimmed.contains("CREATE") ||
                 trimmed.contains("TRUNCATE")) {
+            log.warn("executeQuery() — blocked query containing prohibited keyword");
             return "Error: Query contains prohibited keywords.";
         }
 
         try {
+            long start = System.currentTimeMillis();
             List<Map<String, Object>> results = jdbcTemplate.queryForList(sql);
+            log.info("executeQuery() — executed in {}ms, returned {} row(s)",
+                    System.currentTimeMillis() - start, results.size());
 
             if (results.isEmpty()) {
                 return "Query returned 0 rows.";
@@ -66,12 +77,14 @@ public class DatabaseQueryTool {
             // Format results as a readable table
             return formatResults(results);
         } catch (Exception e) {
+            log.error("executeQuery() — error executing SQL: {}", e.getMessage(), e);
             return "Error executing query: " + e.getMessage();
         }
     }
 
     @Tool(description = "List all available tables in the database with their column information.")
     public String listTables() {
+        log.info("listTables() — scanning database schema");
         try {
             StringBuilder sb = new StringBuilder("Available Tables:\n\n");
 
@@ -79,6 +92,7 @@ public class DatabaseQueryTool {
             List<Map<String, Object>> tables = jdbcTemplate.queryForList(
                     "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'PUBLIC'");
 
+            log.debug("listTables() — found {} table(s)", tables.size());
             for (Map<String, Object> table : tables) {
                 String tableName = (String) table.get("TABLE_NAME");
                 sb.append("📋 ").append(tableName).append("\n");
@@ -98,6 +112,7 @@ public class DatabaseQueryTool {
             }
             return sb.toString();
         } catch (Exception e) {
+            log.error("listTables() — error: {}", e.getMessage(), e);
             return "Error listing tables: " + e.getMessage();
         }
     }
@@ -105,8 +120,10 @@ public class DatabaseQueryTool {
     @Tool(description = "Get a summary of data in a specific table, including row count and sample rows.")
     public String tableSummary(
             @ToolParam(description = "Name of the table to summarize") String tableName) {
+        log.debug("tableSummary() — table: '{}'", tableName);
         // Validate table name (alphanumeric only to prevent injection)
         if (!tableName.matches("[a-zA-Z_][a-zA-Z0-9_]*")) {
+            log.warn("tableSummary() — invalid table name rejected: '{}'", tableName);
             return "Error: Invalid table name.";
         }
 
@@ -120,6 +137,7 @@ public class DatabaseQueryTool {
             List<Map<String, Object>> sample = jdbcTemplate.queryForList(
                     "SELECT * FROM " + tableName + " LIMIT 5");
 
+            log.info("tableSummary() — table '{}' has {} row(s)", tableName, rowCount);
             StringBuilder sb = new StringBuilder();
             sb.append("Table: ").append(tableName).append("\n");
             sb.append("Total rows: ").append(rowCount).append("\n\n");
@@ -127,6 +145,7 @@ public class DatabaseQueryTool {
             sb.append(formatResults(sample));
             return sb.toString();
         } catch (Exception e) {
+            log.error("tableSummary() — error for table '{}': {}", tableName, e.getMessage(), e);
             return "Error summarizing table '" + tableName + "': " + e.getMessage();
         }
     }

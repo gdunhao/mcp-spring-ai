@@ -1,5 +1,7 @@
 package com.example.mcpserver.tools;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,8 @@ import java.util.stream.Stream;
 @Component
 public class FileSystemTool {
 
+    private static final Logger log = LoggerFactory.getLogger(FileSystemTool.class);
+
     private final Path workspaceRoot;
 
     public FileSystemTool() {
@@ -35,7 +39,9 @@ public class FileSystemTool {
         this.workspaceRoot = Path.of(System.getProperty("user.dir"), "demo-workspace").toAbsolutePath();
         try {
             Files.createDirectories(workspaceRoot);
+            log.info("FileSystemTool workspace initialized at: {}", workspaceRoot);
         } catch (IOException e) {
+            log.error("Failed to create workspace directory: {}", workspaceRoot, e);
             throw new RuntimeException("Failed to create workspace directory: " + workspaceRoot, e);
         }
     }
@@ -44,9 +50,11 @@ public class FileSystemTool {
             "Returns names with '/' suffix for directories. Use '.' or '' for the workspace root.")
     public String listFiles(
             @ToolParam(description = "Relative path within the workspace to list. Use '.' for root.") String relativePath) {
+        log.debug("listFiles() — path: '{}'", relativePath);
         try {
             Path target = resolveAndValidate(relativePath);
             if (!Files.isDirectory(target)) {
+                log.warn("listFiles() — not a directory: '{}'", relativePath);
                 return "Error: Path is not a directory: " + relativePath;
             }
 
@@ -58,11 +66,15 @@ public class FileSystemTool {
                         })
                         .sorted()
                         .collect(Collectors.joining("\n"));
-                return listing.isEmpty() ? "(empty directory)" : listing;
+                String result = listing.isEmpty() ? "(empty directory)" : listing;
+                log.info("listFiles() — listed '{}': {} entries", relativePath, listing.isEmpty() ? 0 : listing.split("\n").length);
+                return result;
             }
         } catch (SecurityException e) {
+            log.warn("listFiles() — path traversal attempt blocked: '{}'", relativePath);
             return "Error: Access denied - " + e.getMessage();
         } catch (IOException e) {
+            log.error("listFiles() — I/O error for path '{}': {}", relativePath, e.getMessage(), e);
             return "Error listing files: " + e.getMessage();
         }
     }
@@ -71,19 +83,26 @@ public class FileSystemTool {
             "Returns the full file content as a string.")
     public String readFile(
             @ToolParam(description = "Relative path to the file within the workspace") String relativePath) {
+        log.debug("readFile() — path: '{}'", relativePath);
         try {
             Path target = resolveAndValidate(relativePath);
             if (!Files.isRegularFile(target)) {
+                log.warn("readFile() — not a regular file: '{}'", relativePath);
                 return "Error: Not a regular file: " + relativePath;
             }
             long size = Files.size(target);
             if (size > 100_000) {
+                log.warn("readFile() — file too large ({} bytes): '{}'", size, relativePath);
                 return "Error: File too large (" + size + " bytes). Maximum is 100KB.";
             }
-            return Files.readString(target);
+            String content = Files.readString(target);
+            log.info("readFile() — read '{}' ({} bytes)", relativePath, size);
+            return content;
         } catch (SecurityException e) {
+            log.warn("readFile() — path traversal attempt blocked: '{}'", relativePath);
             return "Error: Access denied - " + e.getMessage();
         } catch (IOException e) {
+            log.error("readFile() — I/O error for path '{}': {}", relativePath, e.getMessage(), e);
             return "Error reading file: " + e.getMessage();
         }
     }
@@ -94,14 +113,18 @@ public class FileSystemTool {
     public String writeFile(
             @ToolParam(description = "Relative path for the file within the workspace") String relativePath,
             @ToolParam(description = "Content to write to the file") String content) {
+        log.debug("writeFile() — path: '{}', content length: {}", relativePath, content.length());
         try {
             Path target = resolveAndValidate(relativePath);
             Files.createDirectories(target.getParent());
             Files.writeString(target, content);
+            log.info("writeFile() — wrote {} chars to '{}'", content.length(), relativePath);
             return "Successfully wrote " + content.length() + " characters to " + relativePath;
         } catch (SecurityException e) {
+            log.warn("writeFile() — path traversal attempt blocked: '{}'", relativePath);
             return "Error: Access denied - " + e.getMessage();
         } catch (IOException e) {
+            log.error("writeFile() — I/O error for path '{}': {}", relativePath, e.getMessage(), e);
             return "Error writing file: " + e.getMessage();
         }
     }
@@ -110,6 +133,7 @@ public class FileSystemTool {
             "Uses glob patterns (e.g., '*.java', '**/*.md'). Returns matching file paths.")
     public String searchFiles(
             @ToolParam(description = "Glob pattern to match files (e.g., '*.java', '**/*.txt')") String pattern) {
+        log.debug("searchFiles() — pattern: '{}'", pattern);
         try {
             PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
             List<String> matches = new ArrayList<>();
@@ -126,10 +150,13 @@ public class FileSystemTool {
             });
 
             if (matches.isEmpty()) {
+                log.debug("searchFiles() — no matches for pattern '{}'", pattern);
                 return "No files found matching pattern: " + pattern;
             }
+            log.info("searchFiles() — found {} file(s) matching '{}'", matches.size(), pattern);
             return "Found " + matches.size() + " file(s):\n" + String.join("\n", matches);
         } catch (IOException e) {
+            log.error("searchFiles() — error searching for pattern '{}': {}", pattern, e.getMessage(), e);
             return "Error searching files: " + e.getMessage();
         }
     }
@@ -138,13 +165,17 @@ public class FileSystemTool {
             "including size, type, and last modified time.")
     public String fileInfo(
             @ToolParam(description = "Relative path to the file or directory") String relativePath) {
+        log.debug("fileInfo() — path: '{}'", relativePath);
         try {
             Path target = resolveAndValidate(relativePath);
             if (!Files.exists(target)) {
+                log.debug("fileInfo() — path does not exist: '{}'", relativePath);
                 return "Error: Path does not exist: " + relativePath;
             }
 
             BasicFileAttributes attrs = Files.readAttributes(target, BasicFileAttributes.class);
+            log.info("fileInfo() — retrieved info for '{}' ({}, {} bytes)",
+                    relativePath, attrs.isDirectory() ? "directory" : "file", attrs.size());
             StringBuilder info = new StringBuilder();
             info.append("Path: ").append(relativePath).append("\n");
             info.append("Type: ").append(attrs.isDirectory() ? "Directory" : "File").append("\n");
@@ -155,8 +186,10 @@ public class FileSystemTool {
             info.append("Writable: ").append(Files.isWritable(target));
             return info.toString();
         } catch (SecurityException e) {
+            log.warn("fileInfo() — path traversal attempt blocked: '{}'", relativePath);
             return "Error: Access denied - " + e.getMessage();
         } catch (IOException e) {
+            log.error("fileInfo() — I/O error for path '{}': {}", relativePath, e.getMessage(), e);
             return "Error getting file info: " + e.getMessage();
         }
     }
@@ -171,6 +204,7 @@ public class FileSystemTool {
         }
         Path resolved = workspaceRoot.resolve(relativePath).normalize().toAbsolutePath();
         if (!resolved.startsWith(workspaceRoot)) {
+            log.warn("resolveAndValidate() — path traversal detected: '{}'", relativePath);
             throw new SecurityException("Path traversal detected: " + relativePath);
         }
         return resolved;

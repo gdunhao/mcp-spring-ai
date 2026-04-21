@@ -1,5 +1,7 @@
 package com.example.mcpserver.tools;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -29,6 +31,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Component
 public class NotificationTool {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificationTool.class);
+
     private final List<NotificationRecord> sentLog = new CopyOnWriteArrayList<>();
 
     @Tool(description = "Send a notification message via a specified channel. " +
@@ -41,14 +45,20 @@ public class NotificationTool {
             @ToolParam(description = "Body/content of the notification message") String body) {
 
         String ch = channel.toLowerCase().trim();
+        log.debug("sendNotification() — channel: '{}', recipient: '{}', subject: '{}'", ch, recipient, subject);
         String trackingId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         LocalDateTime now = LocalDateTime.now();
 
         String validationError = validateChannel(ch, recipient);
-        if (validationError != null) return validationError;
+        if (validationError != null) {
+            log.warn("sendNotification() — validation failed for channel '{}', recipient '{}': {}",
+                    ch, recipient, validationError);
+            return validationError;
+        }
 
         var record = new NotificationRecord(trackingId, ch, recipient, subject, body, now, "DELIVERED");
         sentLog.add(record);
+        log.info("sendNotification() — sent via {} to '{}', trackingId: {}", ch.toUpperCase(), recipient, trackingId);
 
         String channelEmoji = switch (ch) {
             case "email" -> "📧";
@@ -87,6 +97,8 @@ public class NotificationTool {
 
         String ch = channel.toLowerCase().trim();
         String[] recipientList = recipients.split(",");
+        log.info("sendBulkNotification() — channel: '{}', recipients: {}, subject: '{}'",
+                ch, recipientList.length, subject);
         StringBuilder sb = new StringBuilder();
         sb.append("📤 Bulk Notification Report\n\n");
         sb.append("| # | Recipient | Tracking ID | Status |\n");
@@ -99,14 +111,18 @@ public class NotificationTool {
             String validationError = validateChannel(ch, recipient);
 
             if (validationError != null) {
+                log.warn("sendBulkNotification() — invalid recipient '{}' on channel '{}': {}",
+                        recipient, ch, validationError);
                 sb.append(String.format("| %d | %s | — | ❌ Invalid |\n", i + 1, recipient));
             } else {
                 sentLog.add(new NotificationRecord(trackingId, ch, recipient, subject, body, LocalDateTime.now(), "DELIVERED"));
+                log.debug("sendBulkNotification() — sent to '{}', trackingId: {}", recipient, trackingId);
                 sb.append(String.format("| %d | %s | %s | ✅ Sent |\n", i + 1, recipient, trackingId));
                 success++;
             }
         }
 
+        log.info("sendBulkNotification() — completed: {}/{} delivered successfully", success, recipientList.length);
         sb.append(String.format("\n**Summary:** %d/%d delivered successfully\n", success, recipientList.length));
         return sb.toString();
     }
@@ -117,10 +133,15 @@ public class NotificationTool {
             @ToolParam(description = "Maximum number of recent entries to show (default 10)") int limit) {
 
         int effectiveLimit = Math.min(Math.max(limit, 1), 50);
+        log.debug("getNotificationLog() — requested limit: {}, effective: {}, total logged: {}",
+                limit, effectiveLimit, sentLog.size());
 
         if (sentLog.isEmpty()) {
+            log.debug("getNotificationLog() — log is empty");
             return "📋 Notification log is empty. No notifications have been sent yet.";
         }
+
+        log.info("getNotificationLog() — returning up to {} of {} total entries", effectiveLimit, sentLog.size());
 
         StringBuilder sb = new StringBuilder();
         sb.append("📋 Notification Delivery Log\n\n");

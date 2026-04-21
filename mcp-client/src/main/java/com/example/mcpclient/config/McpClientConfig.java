@@ -1,5 +1,7 @@
 package com.example.mcpclient.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
@@ -32,6 +34,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class McpClientConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(McpClientConfig.class);
+
     /**
      * Creates a ChatClient with all discovered MCP tools registered as default tools.
      *
@@ -44,7 +48,8 @@ public class McpClientConfig {
      */
     @Bean
     public ChatClient chatClient(ChatClient.Builder builder, ToolCallbackProvider[] toolCallbackProviders) {
-        return builder
+        log.info("Initializing ChatClient with {} ToolCallbackProvider(s)", toolCallbackProviders.length);
+        ChatClient client = builder
                 .defaultToolCallbacks(toolCallbackProviders)
                 .defaultSystem("""
                         You are a helpful AI assistant with access to various tools.
@@ -61,6 +66,8 @@ public class McpClientConfig {
                         If a tool returns an error, explain the error and suggest alternatives.
                         """)
                 .build();
+        log.info("ChatClient initialized successfully");
+        return client;
     }
 }
 

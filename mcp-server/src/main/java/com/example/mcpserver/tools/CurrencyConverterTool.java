@@ -1,5 +1,7 @@
 package com.example.mcpserver.tools;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,8 @@ import java.util.Map;
  */
 @Component
 public class CurrencyConverterTool {
+
+    private static final Logger log = LoggerFactory.getLogger(CurrencyConverterTool.class);
 
     private static final Map<String, Double> RATES_TO_USD = Map.ofEntries(
             Map.entry("USD", 1.0),
@@ -67,17 +71,25 @@ public class CurrencyConverterTool {
 
         String from = fromCurrency.toUpperCase().trim();
         String to = toCurrency.toUpperCase().trim();
+        log.debug("convertCurrency() — {} {} → {}", amount, from, to);
 
         Double fromRate = RATES_TO_USD.get(from);
         Double toRate = RATES_TO_USD.get(to);
 
-        if (fromRate == null) return "Unsupported currency: " + from + ". Supported: " + String.join(", ", RATES_TO_USD.keySet());
-        if (toRate == null) return "Unsupported currency: " + to + ". Supported: " + String.join(", ", RATES_TO_USD.keySet());
+        if (fromRate == null) {
+            log.warn("convertCurrency() — unsupported source currency: '{}'", from);
+            return "Unsupported currency: " + from + ". Supported: " + String.join(", ", RATES_TO_USD.keySet());
+        }
+        if (toRate == null) {
+            log.warn("convertCurrency() — unsupported target currency: '{}'", to);
+            return "Unsupported currency: " + to + ". Supported: " + String.join(", ", RATES_TO_USD.keySet());
+        }
 
         double amountInUsd = amount / fromRate;
         double converted = amountInUsd * toRate;
         double rate = toRate / fromRate;
 
+        log.info("convertCurrency() — {} {} → {} (rate: {})", amount, from, to, String.format("%.4f", rate));
         return String.format("""
                 💱 Currency Conversion
                 📅 Date: %s
@@ -97,9 +109,16 @@ public class CurrencyConverterTool {
             @ToolParam(description = "Base currency code (e.g., USD)") String baseCurrency) {
 
         String base = baseCurrency.toUpperCase().trim();
+        log.debug("getExchangeRates() — base currency: '{}'", base);
         Double baseRate = RATES_TO_USD.get(base);
 
-        if (baseRate == null) return "Unsupported currency: " + base;
+        if (baseRate == null) {
+            log.warn("getExchangeRates() — unsupported currency: '{}'", base);
+            return "Unsupported currency: " + base;
+        }
+
+        log.info("getExchangeRates() — returning {} exchange rates vs {} other currencies",
+                base, RATES_TO_USD.size() - 1);
 
         StringBuilder sb = new StringBuilder();
         sb.append("📊 Exchange Rates — Base: ").append(base).append(" (").append(CURRENCY_NAMES.get(base)).append(")\n");
@@ -125,8 +144,12 @@ public class CurrencyConverterTool {
             @ToolParam(description = "Target currency to total everything in") String targetCurrency) {
 
         String target = targetCurrency.toUpperCase().trim();
+        log.debug("calculateMultiCurrencyTotal() — items: '{}', target: '{}'", items, target);
         Double targetRate = RATES_TO_USD.get(target);
-        if (targetRate == null) return "Unsupported target currency: " + target;
+        if (targetRate == null) {
+            log.warn("calculateMultiCurrencyTotal() — unsupported target currency: '{}'", target);
+            return "Unsupported target currency: " + target;
+        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("🧾 Multi-Currency Total (target: ").append(target).append(")\n\n");
@@ -161,6 +184,7 @@ public class CurrencyConverterTool {
         }
 
         sb.append(String.format("\n**Total: %,.2f %s**\n", totalInTarget, target));
+        log.info("calculateMultiCurrencyTotal() — total: {} {}", String.format("%.2f", totalInTarget), target);
         return sb.toString();
     }
 }

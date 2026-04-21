@@ -1,6 +1,8 @@
 package com.example.mcpclient.controller;
 
 import com.example.mcpclient.service.ChatService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,8 @@ import reactor.core.publisher.Flux;
 @RestController
 @RequestMapping("/chat")
 public class ChatController {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     // ── Request / Response records ────────────────────────────────────────────
 
@@ -53,10 +57,16 @@ public class ChatController {
      */
     @PostMapping
     public ResponseEntity<?> chat(@RequestBody ChatRequest request) {
+        log.debug("POST /chat — message length: {}", request.message() != null ? request.message().length() : 0);
         if (request.message() == null || request.message().isBlank()) {
+            log.warn("POST /chat rejected — empty message");
             return ResponseEntity.badRequest().body(new ErrorResponse("Message cannot be empty"));
         }
-        return ResponseEntity.ok(new ChatResponse(chatService.chat(request.message())));
+        log.info("POST /chat — processing message: \"{}\"",
+                request.message().length() > 80 ? request.message().substring(0, 80) + "..." : request.message());
+        String response = chatService.chat(request.message());
+        log.debug("POST /chat — response length: {}", response != null ? response.length() : 0);
+        return ResponseEntity.ok(new ChatResponse(response));
     }
 
     /**
@@ -70,7 +80,10 @@ public class ChatController {
      */
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chatStream(@RequestBody ChatRequest request) {
-        return chatService.chatStream(request.message() != null ? request.message() : "");
+        String message = request.message() != null ? request.message() : "";
+        log.info("POST /chat/stream — starting SSE stream for message: \"{}\"",
+                message.length() > 80 ? message.substring(0, 80) + "..." : message);
+        return chatService.chatStream(message);
     }
 
     /**
@@ -87,11 +100,11 @@ public class ChatController {
      */
     @PostMapping("/system")
     public ChatResponse chatWithSystem(@RequestBody SystemChatRequest request) {
-        return new ChatResponse(
-                chatService.chatWithSystem(
-                        request.system() != null ? request.system() : "",
-                        request.message() != null ? request.message() : ""
-                )
-        );
+        String system = request.system() != null ? request.system() : "";
+        String message = request.message() != null ? request.message() : "";
+        log.info("POST /chat/system — system prompt length: {}, message: \"{}\"",
+                system.length(),
+                message.length() > 80 ? message.substring(0, 80) + "..." : message);
+        return new ChatResponse(chatService.chatWithSystem(system, message));
     }
 }

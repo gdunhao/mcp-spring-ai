@@ -1,6 +1,8 @@
 package com.example.mcpclient.controller;
 
 import com.example.mcpclient.service.ChatService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
@@ -25,6 +27,8 @@ public class DemoController {
     public record CustomDemoRequest(String message) {}
 
     // ─────────────────────────────────────────────────────────────────────────
+
+    private static final Logger log = LoggerFactory.getLogger(DemoController.class);
 
     private final ChatService chatService;
 
@@ -82,6 +86,7 @@ public class DemoController {
 
     @GetMapping("/file-search")
     public DemoResponse fileSearchDemo() {
+        log.info("GET /demo/file-search — running file system exploration demo");
         String prompt = """
                 Please do the following:
                 1. List all files in the workspace root directory
@@ -98,6 +103,7 @@ public class DemoController {
 
     @GetMapping("/db-query")
     public DemoResponse dbQueryDemo() {
+        log.info("GET /demo/db-query — running database query demo");
         String prompt = """
                 I need a business report. Please:
                 1. First, list the available tables in the database to understand the schema
@@ -114,6 +120,7 @@ public class DemoController {
 
     @GetMapping("/weather")
     public DemoResponse weatherDemo() {
+        log.info("GET /demo/weather — running multi-city weather demo");
         String prompt = """
                 I'm planning a trip and considering three destinations: Tokyo, Paris, and Sydney.
                 Please:
@@ -131,6 +138,7 @@ public class DemoController {
 
     @GetMapping("/code-review")
     public DemoResponse codeReviewDemo() {
+        log.info("GET /demo/code-review — running AI code review demo");
         String prompt = """
                 Please analyze the MCP server source code:
                 1. Scan the directory "mcp-server/src/main/java" for Java files
@@ -147,6 +155,7 @@ public class DemoController {
 
     @GetMapping("/knowledge-qa")
     public DemoResponse knowledgeQaDemo() {
+        log.info("GET /demo/knowledge-qa — running knowledge base Q&A demo");
         String prompt = """
                 I'm new to MCP and Spring AI. Can you help me understand:
                 1. What is the Model Context Protocol (MCP) and why was it created?
@@ -165,6 +174,7 @@ public class DemoController {
 
     @GetMapping("/multi-tool")
     public DemoResponse multiToolDemo() {
+        log.info("GET /demo/multi-tool — running multi-tool orchestration demo");
         String prompt = """
                 You are an executive assistant preparing a briefing. Please complete this multi-step workflow:
                 1. Query the database to find the top 3 highest-value orders (join orders with products to get price × quantity)
@@ -184,6 +194,7 @@ public class DemoController {
 
     @GetMapping("/currency")
     public DemoResponse currencyDemo() {
+        log.info("GET /demo/currency — running currency conversion demo");
         String prompt = """
                 I'm managing expenses for an international team. Please help me:
                 1. Show the current exchange rates for USD against all available currencies
@@ -201,6 +212,7 @@ public class DemoController {
 
     @GetMapping("/notification")
     public DemoResponse notificationDemo() {
+        log.info("GET /demo/notification — running multi-channel notification demo");
         String prompt = """
                 We have a critical deployment happening. Please help me coordinate notifications:
                 1. Send an email to ops-team@company.com with subject "Deployment v2.5 Starting" and a brief body about the deployment window
@@ -227,9 +239,11 @@ public class DemoController {
         String customPrompt = request != null && request.message() != null ? request.message() : "";
 
         if (!customPrompt.isBlank()) {
+            log.info("POST /demo/{} — running with custom prompt, length: {}", scenario, customPrompt.length());
             return new DemoResponse(scenario, "Custom prompt", chatService.chat(customPrompt));
         }
 
+        log.info("POST /demo/{} — delegating to built-in scenario", scenario);
         return switch (scenario) {
             case "file-search" -> fileSearchDemo();
             case "db-query" -> dbQueryDemo();
@@ -239,8 +253,11 @@ public class DemoController {
             case "multi-tool" -> multiToolDemo();
             case "currency" -> currencyDemo();
             case "notification" -> notificationDemo();
-            default -> new DemoResponse(scenario, "Error",
-                    "Unknown scenario: " + scenario + ". Use GET /demo/scenarios to see available options.");
+            default -> {
+                log.warn("POST /demo/{} — unknown scenario requested", scenario);
+                yield new DemoResponse(scenario, "Error",
+                        "Unknown scenario: " + scenario + ". Use GET /demo/scenarios to see available options.");
+            }
         };
     }
 }

@@ -2,6 +2,8 @@ package com.example.mcpserver.prompts;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -29,17 +31,21 @@ import java.util.Map;
 @Component
 public class DemoPromptProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(DemoPromptProvider.class);
+
     /**
      * Creates MCP prompt specifications for all demo prompt templates.
      */
     public List<McpServerFeatures.SyncPromptSpecification> getPromptSpecifications() {
-        return List.of(
+        List<McpServerFeatures.SyncPromptSpecification> specs = List.of(
                 createSummarizeDocumentPrompt(),
                 createSqlQueryHelperPrompt(),
                 createCodeReviewPrompt(),
                 createExplainConceptPrompt(),
                 createCompareAndContrastPrompt()
         );
+        log.info("DemoPromptProvider — registered {} prompt template(s)", specs.size());
+        return specs;
     }
 
     /**
@@ -59,6 +65,7 @@ public class DemoPromptProvider {
         return new McpServerFeatures.SyncPromptSpecification(prompt, (exchange, request) -> {
             String content = arg(request.arguments(), "content", "");
             String style = arg(request.arguments(), "style", "brief");
+            log.info("prompt 'summarize-document' invoked — style: '{}', content length: {}", style, content.length());
 
             String instruction = switch (style) {
                 case "detailed" -> "Provide a comprehensive, detailed summary of the following document. " +
@@ -101,6 +108,8 @@ public class DemoPromptProvider {
                             "departments (id, name, budget, manager_name), " +
                             "products (id, name, category, price, stock_quantity), " +
                             "orders (id, product_id, customer_name, quantity, order_date, status)");
+            log.info("prompt 'sql-query-helper' invoked — question: '{}'",
+                    question.length() > 80 ? question.substring(0, 80) + "..." : question);
 
             String systemMessage = """
                     You are a SQL expert. Generate a SQL SELECT query based on the user's question.
@@ -146,6 +155,8 @@ public class DemoPromptProvider {
             String code = arg(request.arguments(), "code", "");
             String language = arg(request.arguments(), "language", "java");
             String focus = arg(request.arguments(), "focus", "all");
+            log.info("prompt 'code-review' invoked — language: '{}', focus: '{}', code length: {}",
+                    language, focus, code.length());
 
             String reviewInstruction = """
                     You are an experienced %s code reviewer. Review the following code and provide feedback.
@@ -189,6 +200,7 @@ public class DemoPromptProvider {
         return new McpServerFeatures.SyncPromptSpecification(prompt, (exchange, request) -> {
             String concept = arg(request.arguments(), "concept", "");
             String level = arg(request.arguments(), "level", "intermediate");
+            log.info("prompt 'explain-concept' invoked — concept: '{}', level: '{}'", concept, level);
 
             String instruction = switch (level) {
                 case "beginner" -> "Explain the following concept as if you're talking to someone who is new to programming. " +
@@ -231,6 +243,7 @@ public class DemoPromptProvider {
             String item1 = arg(request.arguments(), "item1", "");
             String item2 = arg(request.arguments(), "item2", "");
             String context = arg(request.arguments(), "context", "general software development");
+            log.info("prompt 'compare-and-contrast' invoked — '{}' vs '{}', context: '{}'", item1, item2, context);
 
             String instruction = """
                     Compare and contrast %s vs %s in the context of %s.

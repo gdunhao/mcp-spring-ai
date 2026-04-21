@@ -1,7 +1,8 @@
 package com.example.mcpclient.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -25,6 +26,8 @@ import reactor.core.publisher.Flux;
 @Service
 public class ChatService {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
+
     private final ChatClient chatClient;
 
     public ChatService(ChatClient chatClient) {
@@ -36,10 +39,15 @@ public class ChatService {
      * Tool calls are executed automatically during this process.
      */
     public String chat(String userMessage) {
-        return chatClient.prompt()
+        log.debug("chat() — invoking LLM, message length: {}", userMessage.length());
+        long start = System.currentTimeMillis();
+        String content = chatClient.prompt()
                 .user(userMessage)
                 .call()
                 .content();
+        log.info("chat() — completed in {}ms, response length: {}",
+                System.currentTimeMillis() - start, content != null ? content.length() : 0);
+        return content;
     }
 
     /**
@@ -47,11 +55,17 @@ public class ChatService {
      * Useful for demo scenarios that need specialized behavior.
      */
     public String chatWithSystem(String systemMessage, String userMessage) {
-        return chatClient.prompt()
+        log.debug("chatWithSystem() — system prompt length: {}, message length: {}",
+                systemMessage.length(), userMessage.length());
+        long start = System.currentTimeMillis();
+        String content = chatClient.prompt()
                 .system(systemMessage)
                 .user(userMessage)
                 .call()
                 .content();
+        log.info("chatWithSystem() — completed in {}ms, response length: {}",
+                System.currentTimeMillis() - start, content != null ? content.length() : 0);
+        return content;
     }
 
     /**
@@ -59,10 +73,14 @@ public class ChatService {
      * Note: Tool calls are still executed in full before streaming begins.
      */
     public Flux<String> chatStream(String userMessage) {
+        log.debug("chatStream() — setting up SSE stream, message length: {}", userMessage.length());
         return chatClient.prompt()
                 .user(userMessage)
                 .stream()
-                .content();
+                .content()
+                .doOnSubscribe(sub -> log.info("chatStream() — SSE stream subscribed"))
+                .doOnComplete(() -> log.info("chatStream() — SSE stream completed"))
+                .doOnError(e -> log.error("chatStream() — SSE stream error: {}", e.getMessage(), e));
     }
 }
 

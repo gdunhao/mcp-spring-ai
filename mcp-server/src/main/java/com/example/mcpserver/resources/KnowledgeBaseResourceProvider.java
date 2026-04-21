@@ -2,6 +2,8 @@ package com.example.mcpserver.resources;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
@@ -37,6 +39,8 @@ import java.util.List;
 @Component
 public class KnowledgeBaseResourceProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeBaseResourceProvider.class);
+
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
     /**
@@ -48,6 +52,7 @@ public class KnowledgeBaseResourceProvider {
 
         try {
             Resource[] resources = resolver.getResources("classpath:knowledge-base/*.md");
+            log.info("KnowledgeBaseResourceProvider — found {} knowledge base document(s)", resources.length);
 
             for (Resource resource : resources) {
                 String filename = resource.getFilename();
@@ -56,6 +61,8 @@ public class KnowledgeBaseResourceProvider {
                 String uri = "kb://" + filename.replace(".md", "");
                 String name = filename.replace(".md", "").replace("-", " ");
                 name = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+
+                log.debug("KnowledgeBaseResourceProvider — registering resource: uri='{}', name='{}'", uri, name);
 
                 // Create the MCP resource descriptor
                 var mcpResource = new McpSchema.Resource(
@@ -68,12 +75,16 @@ public class KnowledgeBaseResourceProvider {
 
                 // Create the specification with a handler that reads the file content
                 String resourcePath = "classpath:knowledge-base/" + filename;
+                final String resourceName = name;
                 specifications.add(new McpServerFeatures.SyncResourceSpecification(
                         mcpResource,
                         (exchange, request) -> {
+                            log.debug("KnowledgeBaseResourceProvider — reading resource: '{}'", request.uri());
                             try {
                                 Resource res = resolver.getResource(resourcePath);
                                 String content = res.getContentAsString(StandardCharsets.UTF_8);
+                                log.info("KnowledgeBaseResourceProvider — served resource '{}' ({} chars)",
+                                        resourceName, content.length());
                                 return new McpSchema.ReadResourceResult(List.of(
                                         new McpSchema.TextResourceContents(
                                                 request.uri(),
@@ -82,12 +93,16 @@ public class KnowledgeBaseResourceProvider {
                                         )
                                 ));
                             } catch (IOException e) {
+                                log.error("KnowledgeBaseResourceProvider — failed to read resource '{}': {}",
+                                        resourcePath, e.getMessage(), e);
                                 throw new RuntimeException("Failed to read resource: " + resourcePath, e);
                             }
                         }
                 ));
             }
+            log.info("KnowledgeBaseResourceProvider — registered {} MCP resource(s)", specifications.size());
         } catch (IOException e) {
+            log.error("KnowledgeBaseResourceProvider — failed to scan knowledge base: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to scan knowledge base resources", e);
         }
 

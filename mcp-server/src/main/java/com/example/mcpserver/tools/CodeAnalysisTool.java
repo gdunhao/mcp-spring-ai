@@ -1,5 +1,7 @@
 package com.example.mcpserver.tools;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -31,14 +33,18 @@ import java.util.stream.Stream;
 @Component
 public class CodeAnalysisTool {
 
+    private static final Logger log = LoggerFactory.getLogger(CodeAnalysisTool.class);
+
     @Tool(description = "Analyze a Java source file and return metrics including: " +
             "line count, class/method/field counts, TODO/FIXME comments, and import analysis. " +
             "The path should be relative to the project root.")
     public String analyzeJavaFile(
             @ToolParam(description = "Relative path to the Java source file") String filePath) {
+        log.debug("analyzeJavaFile() — path: '{}'", filePath);
         try {
             Path path = Path.of(filePath).toAbsolutePath();
             if (!Files.isRegularFile(path) || !filePath.endsWith(".java")) {
+                log.warn("analyzeJavaFile() — not a valid Java file: '{}'", filePath);
                 return "Error: Not a valid Java file: " + filePath;
             }
 
@@ -106,6 +112,9 @@ public class CodeAnalysisTool {
             sb.append("   Methods (approx): ").append(methodCount).append("\n");
             sb.append("   Imports: ").append(imports.size()).append("\n\n");
 
+            log.info("analyzeJavaFile() — '{}': {} total lines, {} code, {} classes, {} methods, {} TODOs",
+                    Path.of(filePath).getFileName(), totalLines, codeLines, classCount, methodCount, todos.size());
+
             if (!todos.isEmpty()) {
                 sb.append("⚠️ TODOs/FIXMEs (").append(todos.size()).append("):\n");
                 todos.forEach(t -> sb.append(t).append("\n"));
@@ -120,6 +129,7 @@ public class CodeAnalysisTool {
 
             return sb.toString();
         } catch (IOException e) {
+            log.error("analyzeJavaFile() — error analyzing '{}': {}", filePath, e.getMessage(), e);
             return "Error analyzing file: " + e.getMessage();
         }
     }
@@ -128,9 +138,11 @@ public class CodeAnalysisTool {
             "including total files, lines of code, package structure, and common patterns.")
     public String scanDirectory(
             @ToolParam(description = "Path to the directory to scan for Java files") String directoryPath) {
+        log.debug("scanDirectory() — path: '{}'", directoryPath);
         try {
             Path dir = Path.of(directoryPath).toAbsolutePath();
             if (!Files.isDirectory(dir)) {
+                log.warn("scanDirectory() — not a directory: '{}'", directoryPath);
                 return "Error: Not a directory: " + directoryPath;
             }
 
@@ -173,6 +185,9 @@ public class CodeAnalysisTool {
             sb.append("📦 Packages: ").append(packages.size()).append("\n");
             sb.append("⚠️ TODOs/FIXMEs: ").append(todoCount.get()).append("\n\n");
 
+            log.info("scanDirectory() — '{}': {} Java files, {} total lines, {} packages, {} TODOs",
+                    directoryPath, fileCount.get(), totalLines.get(), packages.size(), todoCount.get());
+
             if (!packages.isEmpty()) {
                 sb.append("📦 Package Structure:\n");
                 packages.stream().sorted().forEach(p -> sb.append("   ").append(p).append("\n"));
@@ -186,6 +201,7 @@ public class CodeAnalysisTool {
 
             return sb.toString();
         } catch (IOException e) {
+            log.error("scanDirectory() — error scanning '{}': {}", directoryPath, e.getMessage(), e);
             return "Error scanning directory: " + e.getMessage();
         }
     }
@@ -195,6 +211,7 @@ public class CodeAnalysisTool {
     public String findPattern(
             @ToolParam(description = "Directory path to search in") String directoryPath,
             @ToolParam(description = "Regex pattern to search for in Java files") String regex) {
+        log.debug("findPattern() — directory: '{}', pattern: '{}'", directoryPath, regex);
         try {
             Path dir = Path.of(directoryPath).toAbsolutePath();
             Pattern pattern = Pattern.compile(regex);
@@ -217,9 +234,11 @@ public class CodeAnalysisTool {
             });
 
             if (matches.isEmpty()) {
+                log.debug("findPattern() — no matches for '{}' in '{}'", regex, directoryPath);
                 return "No matches found for pattern: " + regex;
             }
 
+            log.info("findPattern() — found {} match(es) for '{}' in '{}'", matches.size(), regex, directoryPath);
             StringBuilder sb = new StringBuilder();
             sb.append("🔍 Pattern Search: ").append(regex).append("\n");
             sb.append("Found ").append(matches.size()).append(" match(es):\n\n");
@@ -229,6 +248,7 @@ public class CodeAnalysisTool {
             }
             return sb.toString();
         } catch (Exception e) {
+            log.error("findPattern() — error searching for '{}' in '{}': {}", regex, directoryPath, e.getMessage(), e);
             return "Error searching pattern: " + e.getMessage();
         }
     }
